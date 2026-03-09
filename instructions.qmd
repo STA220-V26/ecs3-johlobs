@@ -40,12 +40,6 @@ Always make sure you don't share any sensitive data!
 usethis::edit_git_ignore("project")
 ```
 
-You may instead start by a simple R script, if so initiate one in the R/folder
-
-```{r}
-usethis::use_r("draft")
-```
-
 Then, if you have time later, you may try to convert your code from that file into a more formal pipeline before submitting your final version.
 
 No mather which option you choose, make sure to document your code by comments (including any code you might just copy from below)!
@@ -193,16 +187,17 @@ patients[,
   .SDcols = fctr_candidates
 ] |>
   glimpse()
+
 ```
 
 Some variables might also look like good factor candidates but might already have good enough labels. Just convert those to factors by something like:
 
 ```{r}
-#| eval: false
+
 patients[,
-  names(.SD) := lapply(as.factor),
-  .SDcols = c("____", "____", ..., "____")
-]
+    names(.SD) := lapply(.SD, as.factor),
+    .SDcols = c("gender", "race", "state", "ethnicity")  
+  ] 
 ```
 
 ## Unusual combinations?
@@ -211,6 +206,10 @@ How many individuals are there in the patients data set? It might be enough for 
 
 ```{r}
 patients[, .N, .(gender, race, state)][order(N)]
+
+  patients[,
+    race := forcats::fct_lump_prop(race, prop = 0.05)
+  ]
 ```
 
 Whould it be sensible to present data in a later stage where individual persons might be able to identify themselves? Do you have the ethical permission to present such data (you obviously had the permission to retrieve the data, but that is not the same thing)? Should certain groups be combined when analyzed? Maybe we don't need such detailed classification of "race" for example? Use `forcats::fct_lump_prop()` to reclassify that variable.
@@ -230,7 +229,7 @@ Did we forget something? Maybe we should focus on the living?
 patients[is.na(deathdate), hist(age)]
 ```
 
-Hmm, living by the time the data was collected ... but now we look at their age TODAY. Is this right? When was the original data set generated? Let's say we don't now ... (Yes, you should know if this was your own data, but reality is not always perfect). We have data for `payer_transitions` as well. Since this is US data, such things are important to their health care. We might check when the last transaction was performed and might guess that the data snapshot was taken soon after that.
+Hmm, living by the time the data was collected ... but now we look at their age TODAY. Is this right? When was the original data set generated? Let's say we don't know ... (Yes, you should know if this was your own data, but reality is not always perfect). We have data for `payer_transitions` as well. Since this is US data, such things are important to their health care. We might check when the last transaction was performed and might guess that the data snapshot was taken soon after that.
 
 We only need a single date however, so no need to read the whole file (no problem with this toy data but you might have massive data sets later in life). First, unzip only the relevant file and then use duckdb to perform some calculations on disk.
 
@@ -238,7 +237,7 @@ We only need a single date however, so no need to read the whole file (no proble
 unzip("data.zip", files = "data-fixed/payer_transitions.csv")
 lastdate <-
   duckplyr::read_csv_duckdb("data-fixed/payer_transitions.csv") |>
-  summarise(lastdate = max(end_date)) |>
+  summarise(lastdate = max(start_date)) |>
   collect() |>
   pluck("lastdate") |>
   as.Date()
